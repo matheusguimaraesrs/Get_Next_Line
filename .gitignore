@@ -1,0 +1,18 @@
+# Compilação e Binários
+*.o
+*.a
+*.so
+*.out
+push_swap
+checker
+
+# Debug e Profiling
+*.dSYM/
+gmon.out
+.vscode/
+.idea/
+
+# Arquivos Temporários e Logs
+*.log
+*.tmp
+.DS_Store
