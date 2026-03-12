@@ -56,7 +56,11 @@ Como você já sabe, o `open()` e o `read()` são chamadas de sistema (Syscall),
 
 * **open():** É a porta de entrada. Ele não lê o conteúdo do arquivo, mas solicita o acesso ao Kernel. Você deve passar o caminho do arquivo (path) e qual a sua intenção (flag), por exemplo: `open("arquivo.txt", O_RDONLY)`, você está pedindo ao Kernel para verificar se o arquivo existe e se você possui permissão para lê-lo (*O_RDONLY: read only, ou traduzindo, somente leitura*), se a resposta for positiva, o Kernel retorna o número inteiro que será o seu File Descriptor, que explicamos anteriormente. Se o arquivo não existir ou se você não tiver permissão para lê-lo, então o Kernel retorna -1, indicando um erro. Existem outras flags além do `O_RDONLY`, mas não irei explicar aqui para não desviar muito do nosso objetivo, porém vale a pena pesquisar quais são as essas flags e como elas funcionam caso tenha despertado sua curiosidade.
 
+`int fd = open("text.txt", O_RDONLY);`
+
  * **read():** O `read()` é quem de fato faz o transporte de dados do disco para a memória do seu programa. Ele recebe o seu **FD**, estabelecendo conexão com o arquivo e sabendo exatamente a partir de onde ele deve ler, o **buffer**, que é o espaço de memória reservado por você através do `malloc()` para guardar esses dados e o **tamanho** que você quer ler deste arquivo, esse tamanho nós iremos chamar de `BUFFER_SIZE`. O Kernel então consulta o "marcador da página" associado ao nosso FD, transfere a quantidade de dados compatível com o nosso BUFFER_SIZE e os guarda no nosso espaço de memória reservado. Após isso ele atualiza o "marcador da página" (chamamos esse marcador de *offset*) para o estado atual, para que na próxima chamada o sistema saiba exatamente onde continuar a transferência dos dados. O read() retorna a quantidade de bytes lidos, ao encerrar os dados ele retornará 0 e em caso de erros retornará -1.
+
+`ssize_t readed = read(fd, buffer, BUFFER_SIZE);`
 
 ### Gerenciamento de Memória (malloc e free)
 
@@ -64,7 +68,21 @@ Antes de falarmos sobre variáveis estáticas, precisamos garantir que o conceit
 A Alocação Dinâmica permite que um programa consiga reservar um espaço na memória durante a sua execução, em vez de reservá-la fixamente no código fonte durante a compilação, o que chamamos Alocação Estática. A memória dinâmica permite que o programador tenha controle total sobre o tempo de vida e o tamanho daquela memória reservada. Mas isso também exige um grau de responsabilidade muito alto, pois toda memória alocada manualmente também deve ser devidamente liberada manualmente, para garantir que não haja nenhum vazamento de memória (memory leak). 
 
 * **malloc():** Solicita ao sistema operacional um bloco específico de memória. Você deve informar o tamnho em bytes e a função retorna um ponteiro para o início desse bloco. Para descobrir o tamanho exato de bytes que você irá precisar, basta multiplicar o tamanho que você quer alocar * a quantidade de bytes que cada tipo carrega. Por exemplo, um char = 1 byte, neste caso se quiser alocar uma string com 100 caracteres nós chamamos o malloc(100 * sizeof(char)), reservando então um bloco de 100 bytes na memória. E se fosse um `int`? Bom, um inteiro possui 4 bytes, malloc(100 * sizeof(int)) resultaria em um bloco de memória de 400 bytes reservado.
+
+`char *buffer = (char *)malloc((BUFFER_SIZE + 1) * sizeof(char));`
+OBS.: No exemplo abaixo, usamos o BUFFER_SIZE que é uma macro definida no header, somamos ela com +1 pois criaremos uma string, isso significa que precisamos reservar 1 espaço para nulo ao final de toda string.
+
+
 * **free():** O free é o comando que devolve a memória que você reservou de volta para o sistema. Em uma explicação mais superficial para não entrarmos em um submundo abstrato de mais, essa memória que foi alocada pelo `malloc` permanece ocupada até que o programa seja encerrado, mesmo que você pare de usá-la. Se você não deseja mais usar a memória alocada e esquecer de dar free nela, ela ficará presa até o programa ser finalizado, isso é o que chamamos de Memory Leak (vazamento de memória), que consome memória desnecessariamente. Em larga escala isso pode ser um problemão, então lembre-se, usou o malloc() e a variável não tem mais utilidade? `free(variável)`.
+Exemplo:
+```
+char *buffer = (char *)malloc((BUFFER_SIZE + 1) * sizeof(char));
+	if (!buffer)
+		return (NULL);
+	line = read_file(fd, rest, buffer);
+	free(buffer);
+```
+Neste caso a variável `buffer` foi já foi utilizada e nós queremos descartá-la, como ela foi alocada dinâmicamente, devemos usar o free para liberar essa memória (LEMBRE-SE: TODA MEMÓRIA ALOCADA DEVE SER LIBERADA!).
 
 ## Variáveis Estáticas (static)
 
