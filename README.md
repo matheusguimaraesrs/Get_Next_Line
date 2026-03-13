@@ -98,7 +98,7 @@ Quando falamos de de variáveis estáticas, estamos falando de memória de longo
 
 ## Como de fato funciona a get_next_line
 
-Agora que você já tem uma base sólida, posso explicar de fato como funciona a `get_next_line`. Pense nela como uma impressora de linhas que utiliza 2 ferramentas principais: o **FD** para encontrar o arquivo e o `read()` para transferir esses dados em pedaços definidos no seu **BUFFER_SIZE** e uma variável estática `static` para guardar a sobra após cadastring quebra de linha do pedaço transferido pelo `read()`.
+Agora que você já tem uma base sólida, posso explicar de fato como funciona a `get_next_line`. Pense nela como uma impressora de linhas que utiliza 3 ferramentas principais: o **FD** para encontrar o arquivo, o `read()` para transferir esses dados em pedaços definidos no seu **BUFFER_SIZE** e uma variável estática `static` para guardar a sobra após cadastring quebra de linha do pedaço transferido pelo `read()`.
 
 ### O Ciclo de funcionamento
 
