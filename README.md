@@ -54,13 +54,13 @@ Além de ser um índice, o FD também consegue rastrear o progresso da sua leitu
 
 Como você já sabe, o `open()` e o `read()` são chamadas de sistema (Syscall), mas o que eles fazem realmente? Vamos entender isso agora.
 
-* **open():** É a porta de entrada. Ele não lê o conteúdo do arquivo, mas solicita o acesso ao Kernel. Você deve passar o caminho do arquivo (path) e qual a sua intenção (flag), por exemplo: `open("arquivo.txt", O_RDONLY)`, você está pedindo ao Kernel para verificar se o arquivo existe e se você possui permissão para lê-lo (*O_RDONLY: read only, ou traduzindo, somente leitura*), se a resposta for positiva, o Kernel retorna o número inteiro que será o seu File Descriptor, que explicamos anteriormente. Se o arquivo não existir ou se você não tiver permissão para lê-lo, então o Kernel retorna -1, indicando um erro. Existem outras flags além do `O_RDONLY`, mas não irei explicar aqui para não desviar muito do nosso objetivo, porém vale a pena pesquisar quais são as essas flags e como elas funcionam caso tenha despertado sua curiosidade.
+* `open()`: É a porta de entrada. Ele não lê o conteúdo do arquivo, mas solicita o acesso ao Kernel. Você deve passar o caminho do arquivo e qual a sua intenção com ele (através de flags). A flag que usaremos nesse projeto é o `O_RDONLY` (que significa read only, ou traduzindo, somente leitura). Se a resposta for positiva, o Kernel retornará um número inteiro que será o seu File Descriptor. Se o arquivo não existir ou se você não tiver permissão para lê-lo, então o Kernel retornará **-1**, indicando um erro. Existem outras flags além do `O_RDONLY`, mas não irei explicar aqui para não desviar muito do nosso objetivo, porém vale a pena pesquisar quais são as essas flags e como elas funcionam caso tenha despertado sua curiosidade.
 
-  Exemplo de como usar o open: `int fd = open("text.txt", O_RDONLY);`
+  Exemplo de como usar o **open**: `int fd = open("text.txt", O_RDONLY);`
 
- * **read():** O `read()` é quem de fato faz o transporte de dados do disco para a memória do seu programa. Ele recebe o seu **FD**, estabelecendo conexão com o arquivo e sabendo exatamente a partir de onde ele deve ler, o **buffer**, que é o espaço de memória reservado por você através do `malloc()` para guardar esses dados e o **tamanho** que você quer ler deste arquivo, esse tamanho nós iremos chamar de `BUFFER_SIZE`. O Kernel então consulta o "marcador da página" associado ao nosso FD, transfere a quantidade de dados compatível com o nosso BUFFER_SIZE e os guarda no nosso espaço de memória reservado. Após isso ele atualiza o "marcador da página" (chamamos esse marcador de *offset*) para o estado atual, para que na próxima chamada o sistema saiba exatamente onde continuar a transferência dos dados. O read() retorna a quantidade de bytes lidos, ao encerrar os dados ele retornará 0 e em caso de erros retornará -1.
+ * `read()` : É quem de fato transportará os dados do disco para o seu programa. Ele se conecta com o arquivo através do File Descriptor e sabe exatamente a partir de onde ele deve ler. Além do File Descriptor, você também deve enviar a variável que receberá esses dados (no nosso caso, um espaço de memória alocado) e a quantidade de bytes que deseja transferir.
 
-	Exemplo de como usar o read: `ssize_t readed = read(fd, buffer, BUFFER_SIZE);`
+	Exemplo de como usar o **read**: `ssize_t readed = read(fd, buffer, 10);`
 
 ### Gerenciamento de Memória (malloc e free)
 
@@ -98,12 +98,12 @@ Quando falamos de de variáveis estáticas, estamos falando de memória de longo
 
 ## Como de fato funciona a get_next_line
 
-Agora que você já tem uma base sólida, posso explicar de fato como funciona a `get_next_line`. Pense nela como uma impressora de linhas que utiliza 3 ferramentas principais: o **FD** para encontrar o arquivo, o `read()` para transferir esses dados em pedaços definidos no seu **BUFFER_SIZE** e uma variável estática `static` para guardar a sobra após cadastring quebra de linha do pedaço transferido pelo `read()`.
+Agora que você já tem uma base sólida, posso explicar de fato como funciona a `get_next_line`. Pense nela como uma impressora de linhas que utiliza 3 ferramentas principais: o **FD** para encontrar o arquivo, o `read()` para transferir esses dados em pedaços definidos no seu **BUFFER_SIZE** e uma variável estática `static` para guardar a sobra após cada quebra de linha da string transferida pelo `read()`.
 
 ### O Ciclo de funcionamento
 
 O objetivo dessa função não é ler um arquivo inteiro, mas processá-lo em pequenos pedaços, encontrar uma quebra de linha (`\n`) ou um nulo (`\0`) e retornar uma string tratada, salvando a sobra em uma variável temporária. O fluxo segue a seguinte lógica:
-1. Abrir o arquivo através do `open()` e guardar o **File Descripor**. Lembre-se que esse passo é responsabilidade da main e não se trata de uma funcionalidade da get_next_line, mas para que a função funcione sua main precisa fazer exatamente isso. Uma variável receberá uma string e, enquanto ela existir, nós chamamos o `get_next_line(fd)`, printamos a resposta na tela e depois damos **free** na string alocada, isso abre espaço para a próxima string que será retornada pela função até não haver string nenhuma.
+1. Abrir o arquivo através do `open()` e guardar o File Descriptor. Lembre-se que esse passo é responsabilidade da main e não se trata de uma funcionalidade da função "get_next_line", mas para que a função funcione sua main precisa fazer exatamente isso. Uma variável receberá uma string e, enquanto existir string, nós continuamos chamando o `get_next_line(fd)`. Dentro do `while` nós printamos a resposta na tela e depois damos free na string alocada, para que abra espaço para a próxima string que será retornada pela função até que não haja mais string no arquivo:
 ```
 int	main(void)
 {
@@ -122,7 +122,7 @@ int	main(void)
 }
 ```
 
-2. A `get_next_line` receberá o **FD**. Criamos a variável estática para guardar o resto que sobrar depois de um `\n`, criamos uma outra variável para guardar o buffer (valor bruto) e uma última variável para guardar a linha depois de todos os tratamentos (valor lapdado). Como nós já temos o valor do BUFFER_SIZE (que é uma macro), nós já sabemos quanto espaço de memória iremos alocar, que será BUFFER_SIZE (+ 1 para o nulo) * sizeof de char. Esse espaço de memória alocado (buffer) receberá os dados transferidos pelo `read()` e, como a variável `buffer` não será mais usada, então damos **free** para liberá-la.
+2. A `get_next_line` receberá o FD como parâmetro. Criamos uma variável estática para guardar sobrar depois de um `\n`, criamos uma segunda variável para guardar o buffer (valor bruto) e uma última variável para guardar a linha depois de todos os tratamentos (valor lapidado). Como nosso BUFFER_SIZE é definido em uma macro, nós já sabemos quanto espaço de memória precisamos alocar: `malloc((BUFFER_SIZE + 1) * sizeof(char))`, somamos BUFFER_SIZE + 1 pois como se trata de uma string, ao final deve-se colocar o `\0`. Esse espaço de memória receberá os dados transferidos pelo `read()` e, assim que variável `buffer` perder sua utilidade, nós liberamos ela com o `free()` :
 ```
 char	*get_next_line(int fd)
 {
@@ -146,8 +146,7 @@ char	*get_next_line(int fd)
 }
 ```
 
-3. O `read()` retornará um produto bruto, devemos tratá-lo para que o resultado retornado seja uma string válida e concatenada com o resto que sobrou (caso tenha sobrado algum caracter após o `\n` anteriormente) e, caso seja a primeira volta, nós usamos a strdup para criar uma string vazia, pois a variável não carrega nenhum valor no seu início, e não podemos concatenar uma string com NULL.
-O encerramento ocorre em três situações distintas: primeiro, se a função `read()` retornar -1, indicando um erro grave de sistema, o loop libera a memória de rest e aborta retornando NULL. Segundo, o loop utiliza um break quando a leitura chega ao fim do arquivo, o que é identificado quando a variável readed é igual a `'\0'` (ou zero), sinalizando que não há mais dados para processar. Por fim, existe uma condição de saída lógica através da função `ft_strchr(rest, '\n')`, que interrompe o ciclo assim que um caractere de nova linha é encontrado no rest, isso permite que o programa processe linha por linha sem precisar carregá-lo inteiramente.
+3. O `read()` retornará um produto bruto, devemos tratá-lo para que o resultado retornado seja uma string válida e concatenada (caso tenha sobrado algum caracter após o `\n` anteriormente) e, caso seja a primeira volta, nós usamos a strdup para criar uma string vazia, pois a variável não carrega nenhum valor no seu início, e não podemos concatenar uma string com NULL. Nós utilizamos um loop infinito estrategicamente, buscando algumas validações para encerrá-lo. O encerramento do loop ocorre em três situações: primeiro, se a função `read()` retornar -1, indicando um erro grave de sistema, o loop libera a memória alocada e aborta retornando `NULL`. Segundo, o loop utiliza um `break` para quebrar o laço de repetição quando a leitura chega ao fim do arquivo, que é identificado quando a variável readed é igual a `\0` , sinalizando que não há mais dados para processar. Por fim, existe uma condição de saída lógica através da função `strchr(rest, '\n')`, que interrompe o ciclo assim que um caractere `\n` é encontrado, isso permite que o programa processe linha por linha.
 ```
 static char	*read_file(int fd, char *rest, char *buffer)
 {
@@ -177,7 +176,7 @@ static char	*read_file(int fd, char *rest, char *buffer)
 	return (rest);
 }
 ```
-4. `get_rest` e `first_line` seguem a mesma lógica, mas com propósitos diferentes. A ideia aqui é utilizar a função substr para recortar toda a string até a quebra de linha, porém enquanto a função `first_line` retorna a primeira linha (incluindo a quebra de linha), a função `get_rest` retorna o resto após a quebra de linha, excluindo a mesma.
+4. As funções de separar a primeira linha e separar o resto seguem a mesma lógica, mas com propósitos diferentes. A ideia aqui é utilizar a função `substr()` para recortar a string até a quebra de linha, porém enquanto a função `first_line` retorna a primeira linha (incluindo o `\n`), a função `get_rest` retorna o resto após a quebra de linha. Inclusive, essas duas funções poderiam ser uma só, porém eu preferi separá-las para que ficasse mais fácil de visualizar o processo de tratamento passo a passo.
 
 ```
 static char	*first_line(char *line)
@@ -190,9 +189,9 @@ static char	*first_line(char *line)
 	free(line);
 	return (line_cuted);
 }
+```
 
-///////////////////////////////////////////////////////
-
+```
 static char	*get_rest(char *line)
 {
 	char	*rest;
@@ -209,7 +208,7 @@ static char	*get_rest(char *line)
 	return (rest);
 }
 ```
-5. Após todo esse tratamento, atribuímos o valor de cada função acima para determinadas variáveis, sendo elas `static char *rest` que guardará o resto após o `\n` para a próxima rodada e `char *line` que será a linha tratada que retornaremos. A sobra da string após a quebra de linha já estará pronta para ser concatenada com o próximo resultado do `read()`.
+5. Após todo esse tratamento, atribuímos o valor de retornado de cada função acima para suas respectivas variáveis, sendo elas: `static char *rest`, que guardará a sobra para a próxima rodada e `char *line`, que será a linha que retornaremos para a main. Lembra que eu comentei que a função `strdup` será usada para atribuir uma string vazia para `rest` caso seja a primeira volta? A partir do momento que nós utilizarmos a função `get_rest`, essa condição não será mais verdadeira, isso significa que, a partir da segunda rodada, `rest` não irá mais entrar na condição do `strdup` pois já possuí um valor para ser concatenado. 
 ```
 rest = get_rest(line);
 line = first_line(line);
@@ -218,7 +217,7 @@ line = first_line(line);
 
 ### O Gerenciamento de Memória
 
-Como você não sabe o tamanho de cada linha ou quantas vezes o `read()` será chamado, utilizamos a memória dinâmica através do `malloc()` para criar o espaço necessário que guardará nossa string de retorno. O processo é simples, criamos uma variável temporária para guardar um valor **X** (que já está alocada) e concatenamos a string **temp** com a string **Y** ao mesmo tempo que atribuímos o valor do resultado para a string **X**, após isso, nós damos `free(temp)` para liberar a memória criada somente pra para auxiliar na concatenação de **X** com **Y**. A regra é clara, toda vez que você retornar uma variável nova criada a partir de uma variável alocada, deve-se dar **free** na variável anterior que já foi processada, caso contrário o programa sofrerá com Memory Leak, acumulando lixo de memória até o encerramento do programa.
+Como você não sabe o tamanho de cada linha ou quantas vezes o `read()` será chamado, utilizamos a memória dinâmica através do `malloc()` para criar o espaço necessário que guardará nossa string de retorno. O processo é simples, criamos uma variável temporária para guardar um valor **X** e concatenamos a string **temp** com a string **Y** ao mesmo tempo que atribuímos o valor do resultado para a string **X**, após isso, nós damos `free(temp)` para liberar a memória criada somente pra para auxiliar na concatenação de **X** com **Y**. A regra é clara, toda vez que você retornar uma variável nova criada a partir de uma variável alocada, deve-se dar **free** na variável anterior que já foi processada, caso contrário o programa sofrerá com Memory Leak, acumulando lixo de memória até o encerramento do programa.
 
 # Referência
 
